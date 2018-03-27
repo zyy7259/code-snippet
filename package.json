@@ -1,0 +1,22 @@
+{
+  "name": "code-snippet",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zyy7259/code-snippet.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zyy7259/code-snippet/issues"
+  },
+  "homepage": "https://github.com/zyy7259/code-snippet#readme",
+  "dependencies": {
+    "fbjs": "^0.8.16"
+  }
+}

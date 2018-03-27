@@ -1,3 +1,5 @@
+import ReactFiberScheduler from './ReactFiberScheduler';
+
 export type Deadline = {
   timeRemaining: () => number
 };
@@ -231,4 +233,139 @@ export type Reconciler<C, I, TI> = {
   // Used internally for filtering out portals. Legacy API.
   findHostInstanceWithNoPortals(component: Fiber): I | TI | null
 };
+
+export default function<T, P, I, TI, HI, PI, C, CC, CX, PL>(
+  config: HostConfig<T, P, I, TI, HI, PI, C, CC, CX, PL>
+): Reconciler<C, I, TI> {
+  const { getPublicInstance } = config;
+
+  const {
+    computeUniqueAsyncExpiration,
+    recalculateCurrentTime,
+    computeExpirationForFiber,
+    scheduleWork,
+    requestWork,
+    flushRoot,
+    batchedUpdates,
+    unbatchedUpdates,
+    flushSync,
+    flushControlled,
+    deferredUpdates,
+    syncUpdates,
+    interactiveUpdates,
+    flushInteractiveUpdates,
+    legacyContext
+  } = ReactFiberScheduler(config);
+
+  return {
+    createContainer(
+      containerInfo: C,
+      isAsync: boolean,
+      hydrate: boolean
+    ): OpaqueRoot {
+      return createFiberRoot(containerInfo, isAsync, hydrate);
+    },
+
+    updateContainer(
+      element: ReactNodeList,
+      container: OpaqueRoot,
+      parentComponent: ?React$Component<any, any>,
+      callback: ?Function
+    ): ExpirationTime {
+      const current = container.current;
+      const currentTime = recalculateCurrentTime();
+      const expirationTime = computeExpirationForFiber(current);
+      return updateContainerAtExpirationTime(
+        element,
+        container,
+        parentComponent,
+        currentTime,
+        expirationTime,
+        callback
+      );
+    },
+
+    updateContainerAtExpirationTime(
+      element,
+      container,
+      parentComponent,
+      expirationTime,
+      callback
+    ) {
+      const currentTime = recalculateCurrentTime();
+      return updateContainerAtExpirationTime(
+        element,
+        container,
+        parentComponent,
+        currentTime,
+        expirationTime,
+        callback
+      );
+    },
+
+    flushRoot,
+
+    requestWork,
+
+    computeUniqueAsyncExpiration,
+
+    batchedUpdates,
+
+    unbatchedUpdates,
+
+    deferredUpdates,
+
+    syncUpdates,
+
+    interactiveUpdates,
+
+    flushInteractiveUpdates,
+
+    flushControlled,
+
+    flushSync,
+
+    getPublicRootInstance(
+      container: OpaqueRoot
+    ): React$Component<any, any> | PI | null {
+      const containerFiber = container.current;
+      if (!containerFiber.child) {
+        return null;
+      }
+      switch (containerFiber.child.tag) {
+        case HostComponent:
+          return getPublicInstance(containerFiber.child.stateNode);
+        default:
+          return containerFiber.child.stateNode;
+      }
+    },
+
+    findHostInstance,
+
+    findHostInstanceWithNoPortals(fiber: Fiber): PI | null {
+      const hostFiber = findCurrentHostFiberWithNoPortals(fiber);
+      if (hostFiber === null) {
+        return null;
+      }
+      return hostFiber.stateNode;
+    },
+
+    injectIntoDevTools(devToolsConfig: DevToolsConfig<I, TI>): boolean {
+      const { findFiberByHostInstance } = devToolsConfig;
+      return ReactFiberDevToolsHook.injectInternals({
+        ...devToolsConfig,
+        findHostInstanceByFiber(fiber: Fiber): I | TI | null {
+          return findHostInstance(fiber);
+        },
+        findFiberByHostInstance(instance: I | TI): Fiber | null {
+          if (!findFiberByHostInstance) {
+            // Might not be implemented by the renderer.
+            return null;
+          }
+          return findFiberByHostInstance(instance);
+        }
+      });
+    }
+  };
+}
 // TODO

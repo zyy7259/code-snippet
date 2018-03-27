@@ -1,4 +1,5 @@
 import { getChildNamespace } from './shared/DOMNamespaces';
+import * as ReactDOMFrameScheduling from 'shared/ReactDOMFrameScheduling';
 
 const DOMRenderer = ReactFiberReconciler({
   getRootHostContext(rootContainerInstance: Container): HostContext {
