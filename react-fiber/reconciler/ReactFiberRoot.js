@@ -1,3 +1,18 @@
+/**
+ * Copyright (c) 2013-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * @flow
+ */
+
+import type { Fiber } from './ReactFiber';
+import type { ExpirationTime } from './ReactFiberExpirationTime';
+
+import { createHostRootFiber } from './ReactFiber';
+import { NoWork } from './ReactFiberExpirationTime';
+
 // TODO: This should be lifted into the renderer.
 export type Batch = {
   _defer: boolean,
@@ -34,3 +49,30 @@ export type FiberRoot = {
   // Linked-list of roots
   nextScheduledRoot: FiberRoot | null
 };
+
+export function createFiberRoot(
+  containerInfo: any,
+  isAsync: boolean,
+  hydrate: boolean
+): FiberRoot {
+  // Cyclic construction. This cheats the type system right now because
+  // stateNode is any.
+  const uninitializedFiber = createHostRootFiber(isAsync);
+  const root = {
+    current: uninitializedFiber,
+    containerInfo: containerInfo,
+    pendingChildren: null,
+    pendingCommitExpirationTime: NoWork,
+    finishedWork: null,
+    context: null,
+    pendingContext: null,
+    hydrate,
+    remainingExpirationTime: NoWork,
+    firstBatch: null,
+    nextScheduledRoot: null
+  };
+  uninitializedFiber.stateNode = root;
+  return root;
+}
+
+// FIXME:

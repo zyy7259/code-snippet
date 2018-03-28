@@ -1,3 +1,19 @@
+/**
+ * Copyright (c) 2013-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * @flow
+ */
+
+import type { Fiber } from './ReactFiber';
+import type { ExpirationTime } from './ReactFiberExpirationTime';
+import type { HostContext } from './ReactFiberHostContext';
+import type { LegacyContext } from './ReactFiberContext';
+import type { NewContext } from './ReactFiberNewContext';
+import type { UpdateQueue } from './ReactFiberUpdateQueue';
+
 import { createCapturedValue } from './ReactCapturedValue';
 import { ensureUpdateQueues } from './ReactFiberUpdateQueue';
 
@@ -162,3 +178,5 @@ export default function<C, CX>(
     unwindInterruptedWork
   };
 }
+
+// FIXME:

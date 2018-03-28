@@ -1,4 +1,39 @@
+/**
+ * Copyright (c) 2013-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * @flow
+ */
+
+import type { Fiber } from './ReactFiber';
+import type { FiberRoot } from './ReactFiberRoot';
+import type { ReactNodeList } from 'shared/ReactTypes';
+import type { ExpirationTime } from './ReactFiberExpirationTime';
+
+import {
+  findCurrentHostFiber,
+  findCurrentHostFiberWithNoPortals
+} from 'react-reconciler/reflection';
+import * as ReactInstanceMap from 'shared/ReactInstanceMap';
+import { HostComponent } from 'shared/ReactTypeOfWork';
+import emptyObject from 'fbjs/lib/emptyObject';
+import getComponentName from 'shared/getComponentName';
+import warning from 'fbjs/lib/warning';
+
+import { createFiberRoot } from './ReactFiberRoot';
+import * as ReactFiberDevToolsHook from './ReactFiberDevToolsHook';
 import ReactFiberScheduler from './ReactFiberScheduler';
+import { insertUpdateIntoFiber } from './ReactFiberUpdateQueue';
+import ReactFiberInstrumentation from './ReactFiberInstrumentation';
+import ReactDebugCurrentFiber from './ReactDebugCurrentFiber';
+
+let didWarnAboutNestedUpdates;
+
+if (__DEV__) {
+  didWarnAboutNestedUpdates = false;
+}
 
 export type Deadline = {
   timeRemaining: () => number
@@ -257,6 +292,123 @@ export default function<T, P, I, TI, HI, PI, C, CC, CX, PL>(
     legacyContext
   } = ReactFiberScheduler(config);
 
+  const {
+    findCurrentUnmaskedContext,
+    isContextProvider,
+    processChildContext
+  } = legacyContext;
+
+  function getContextForSubtree(
+    parentComponent: ?React$Component<any, any>
+  ): Object {
+    if (!parentComponent) {
+      return emptyObject;
+    }
+
+    const fiber = ReactInstanceMap.get(parentComponent);
+    const parentContext = findCurrentUnmaskedContext(fiber);
+    return isContextProvider(fiber)
+      ? processChildContext(fiber, parentContext)
+      : parentContext;
+  }
+
+  function scheduleRootUpdate(
+    current: Fiber,
+    element: ReactNodeList,
+    currentTime: ExpirationTime,
+    expirationTime: ExpirationTime,
+    callback: ?Function
+  ) {
+    if (__DEV__) {
+      if (
+        ReactDebugCurrentFiber.phase === 'render' &&
+        ReactDebugCurrentFiber.current !== null &&
+        !didWarnAboutNestedUpdates
+      ) {
+        didWarnAboutNestedUpdates = true;
+        warning(
+          false,
+          'Render methods should be a pure function of props and state; ' +
+            'triggering nested component updates from render is not allowed. ' +
+            'If necessary, trigger nested updates in componentDidUpdate.\n\n' +
+            'Check the render method of %s.',
+          getComponentName(ReactDebugCurrentFiber.current) || 'Unknown'
+        );
+      }
+    }
+
+    callback = callback === undefined ? null : callback;
+    if (__DEV__) {
+      warning(
+        callback === null || typeof callback === 'function',
+        'render(...): Expected the last optional `callback` argument to be a ' +
+          'function. Instead received: %s.',
+        callback
+      );
+    }
+
+    const update = {
+      expirationTime,
+      partialState: { element },
+      callback,
+      isReplace: false,
+      isForced: false,
+      capturedValue: null,
+      next: null
+    };
+    insertUpdateIntoFiber(current, update);
+    scheduleWork(current, expirationTime);
+
+    return expirationTime;
+  }
+
+  function updateContainerAtExpirationTime(
+    element: ReactNodeList,
+    container: OpaqueRoot,
+    parentComponent: ?React$Component<any, any>,
+    currentTime: ExpirationTime,
+    expirationTime: ExpirationTime,
+    callback: ?Function
+  ) {
+    // TODO: If this is a nested container, this won't be the root.
+    const current = container.current;
+
+    if (__DEV__) {
+      if (ReactFiberInstrumentation.debugTool) {
+        if (current.alternate === null) {
+          ReactFiberInstrumentation.debugTool.onMountContainer(container);
+        } else if (element === null) {
+          ReactFiberInstrumentation.debugTool.onUnmountContainer(container);
+        } else {
+          ReactFiberInstrumentation.debugTool.onUpdateContainer(container);
+        }
+      }
+    }
+
+    const context = getContextForSubtree(parentComponent);
+    if (container.context === null) {
+      container.context = context;
+    } else {
+      container.pendingContext = context;
+    }
+
+    return scheduleRootUpdate(
+      current,
+      element,
+      currentTime,
+      expirationTime,
+      callback
+    );
+  }
+
+  function findHostInstance(fiber: Fiber): PI | null {
+    const hostFiber = findCurrentHostFiber(fiber);
+    if (hostFiber === null) {
+      return null;
+    }
+    return hostFiber.stateNode;
+  }
+
   return {
     createContainer(
       containerInfo: C,
@@ -368,4 +520,5 @@ export default function<T, P, I, TI, HI, PI, C, CC, CX, PL>(
     }
   };
 }
-// TODO
+
+// FIXME:

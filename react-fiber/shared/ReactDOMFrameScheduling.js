@@ -2,19 +2,6 @@ import { alwaysUseRequestIdleCallbackPolyfill } from './ReactFeatureFlags';
 import ExecutionEnvironment from 'fbjs/lib/ExecutionEnvironment';
 import warning from 'fbjs/lib/warning';
 
-if (__DEV__) {
-  if (
-    ExecutionEnvironment.canUseDOM &&
-    typeof requestAnimationFrame !== 'function'
-  ) {
-    warning(
-      false,
-      'React depends on requestAnimationFrame. Make sure that you load a ' +
-        'polyfill in older browsers. https://fb.me/react-polyfills'
-    );
-  }
-}
-
 const hasNativePerformanceNow =
   typeof performance === 'object' && typeof performance.now === 'function';
 
